@@ -11,25 +11,21 @@ app.use(express.json());
 app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
 
 app.use("/customer/auth/*", function auth(req,res,next){
-    const { username, password } = req.body;
+    // Проверяем, что пользователь уже логинен (в сессии есть токен)
+  const auth = req.session?.authorization;
+  if (!auth) {
+    return res.status(403).json({ message: "User not logged in" });
+  }
 
-    
-    if (!username || !password) {
-      return res.status(400).json({ message: "Username and password are required" });
+  const token = auth.accessToken;
+  jwt.verify(token, "access", (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: "User not authenticated" });
     }
-  
-    if (!authenticatedUser(username, password)) {
-      return res.status(401).json({ message: "Invalid login. Check username and password" });
-    }
-  
-    const accessToken = jwt.sign(
-      { sub: username },          
-      "access",                   
-      { expiresIn: 60 }           
-    );
-  
-    req.session.authorization = { accessToken, username };
-    return res.status(200).json({ message: "User successfully logged in" });
+    // Для удобства прокидываем имя пользователя дальше
+    req.user = { username: auth.username };
+    next();
+  });
 });
  
 const PORT =5000;

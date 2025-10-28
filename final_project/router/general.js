@@ -3,29 +3,26 @@ let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
 const public_users = express.Router();
-
+const axios = require('axios');
 
 public_users.post("/register", (req,res) => {
   const username = req.body.username;
   const password = req.body.password;
+  
 
-  // проверяем, что оба поля есть
   if (!username || !password) {
     return res.status(400).json({ message: "Username and password are required" });
   }
 
-  // проверяем, что такого пользователя ещё нет
   const existingUser = users.find((u) => u.username === username);
   if (existingUser) {
     return res.status(409).json({ message: "User already exists" });
   }
 
-  // добавляем нового пользователя
   users.push({ username, password });
   res.status(200).json({ message: "User successfully registered. You can now log in." });
 });
 
-// Get the book list available in the shop
 public_users.get('/',function (req, res) {
   //Write your code here
   return res.status(200).send(JSON.stringify(books, null, 4));
@@ -80,5 +77,57 @@ public_users.get('/review/:isbn',function (req, res) {
   let isbn = req.params.isbn;
   res.send(books[isbn].reviews);
 });
+
+public_users.get('/async/books', async (req, res) => {
+    try {
+      const response = await axios.get('http://localhost:5000/'); 
+      return res.status(200).send(response.data);
+    } catch (err) {
+      return res.status(500).json({ message: 'Failed to fetch books via axios', error: String(err) });
+    }
+  });
+
+  public_users.get('/async/isbn/:isbn', async (req, res) => {
+    try {
+      const { isbn } = req.params;
+      const base = `${req.protocol}://${req.get('host')}`;
+      const resp = await axios.get(`${base}/isbn/${isbn}`);
+      return res.status(200).send(JSON.stringify(resp.data, null, 4));
+    } catch (err) {
+      if (err.response) {
+        return res.status(err.response.status).json(err.response.data);
+      }
+      return res.status(500).json({ message: "Internal error", error: err.message });
+    }
+  });  
+
+  public_users.get('/async/author/:author', async (req, res) => {
+    try {
+      const { author } = req.params;
+      const base = `${req.protocol}://${req.get('host')}`;
+      const resp = await axios.get(`${base}/author/${encodeURIComponent(author)}`);
+      return res.status(200).send(JSON.stringify(resp.data, null, 4));
+    } catch (err) {
+      if (err.response) {
+        return res.status(err.response.status).json(err.response.data);
+      }
+      return res.status(500).json({ message: "Internal error", error: err.message });
+    }
+  });
+
+
+  public_users.get('/async/title/:title', async (req, res) => {
+    try {
+      const { title } = req.params;
+      const base = `${req.protocol}://${req.get('host')}`;
+      const resp = await axios.get(`${base}/title/${encodeURIComponent(title)}`);
+      return res.status(200).send(JSON.stringify(resp.data, null, 4));
+    } catch (err) {
+      if (err.response) {
+        return res.status(err.response.status).json(err.response.data);
+      }
+      return res.status(500).json({ message: "Internal error", error: err.message });
+    }
+  }); 
 
 module.exports.general = public_users;
